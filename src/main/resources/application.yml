@@ -1,0 +1,91 @@
+resilience4j:
+  circuitbreaker:
+    configs:
+      defecto:
+        sliding-window-size: 6
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 20s
+        permitted-number-of-calls-in-half-open-state: 4
+        slow-call-rate-thresold: 50
+        slow-call-duration-thresold: 2s
+    instances:
+      cliente:
+        base-config: defecto
+  timelimeter:
+    configs:
+      defecto:
+        timeout-duration: 2s
+    instances:
+      cliente:
+        base-config: defecto
+spring:
+  application:
+    name: HBT-GATEWAY-SERVICE
+  config:
+    import=optional:configserver:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enable: true
+      routes:
+        - id: hbt-cliente-service
+          uri: lb://HBT-CLIENTE-SERVICE
+          predicates:
+            - Path=/hbt/cliente/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cliente
+                statusCodes: 500
+                fallbackUri: forward:/api/
+            - StripPrefix=2
+            - name: Hbt
+              args:
+                message: Hola, este es el mensaje personalizado
+                cokieName: usuario
+                cokieValue: jcsolis
+        #            - name: CircuitBreaker
+        #              args:
+        #                name: order-service
+        #                fallbackuri: forward:/orderFallback
+        - id: hbt-seguridad-service
+          uri: lb://HBT-SEGURIDAD-SERVICE
+          predicates:
+            - Path=/hbt/seguridad/**
+          filters:
+            - StripPrefix=2
+        #          filters:
+        #            - name: CircuitBreaker
+        #              args:
+        #                name: payment-service
+        #                fallbackuri: forward:/paymentFallback
+        - id: hbt-upload-service
+          uri: lb://HBT-UPLOAD-SERVICE
+          predicates:
+            - Path=/hbt/upload/**
+          filters:
+            - StripPrefix=2
+#            - name: CircuitBreaker
+#              args:
+#                name: order-service
+#                fallbackuri: forward:/orderFallback
+
+
+#        - id: procesos-programados-service
+#          uri: lb://PROCESOS-PROGRAMADOS-SERVICE
+#          predicates:
+#            - Path=/procesos-programados-rest/rest/**
+#          filters:
+#            - StripPrefix=2
+server:
+  port: 8180
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    registerWithEureka: true
+    fetchRegistry: true
+    serviceUrl:
+      defaultZone: http://localhost:5000/eureka
